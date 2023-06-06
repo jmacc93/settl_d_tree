@@ -54,6 +54,52 @@ mixin template TreeBody(Node) {
   TreeIndex rootIndex;
   bool hasRoot = false; // equivalent to (length != 0) ie (!empty)
   
+  string indentedLinesString() {
+    string ret = "";
+    applyFirstChildrenFirst(rootIndex, (TreeIndex index){
+      import std.stdio : writeln;
+      import std.array : replicate;
+      
+      ulong depth = findDepth(index);
+      
+      writeln(replicate("  ", depth), get(index));
+    });
+    return ret;
+  }
+  
+  static if(hasModule!"std.json" && !isVersion!"noJson") {
+    import std.json : JSONValue;
+    
+    JSONValue toJson() {
+      return toJson(rootIndex);
+    }
+    JSONValue toJson(TreeIndex from) {
+      JSONValue furledJsonValue = furlBranch(from, (JSONValue[] childJsonValues, TreeIndex nodeIndex) {
+        JSONValue childrenJson;
+        if(childJsonValues.length == 0)
+          childrenJson.array = new JSONValue[](0);
+        else
+          childrenJson.array = childJsonValues;
+          
+        Node* node = &get(nodeIndex);
+        
+        static if(__traits(compiles, node.toJson())) {
+          JSONValue nodeValue = node.toJson();
+          return JSONValue([
+            "children": childrenJson,
+            "nodeValue": nodeValue
+          ]);
+        } else {
+          return JSONValue([
+            "children": childrenJson
+          ]);
+        }
+      });
+      return furledJsonValue;
+    }
+    
+  }
+  
   // 9e56d0e8-fedb-52e6-a04f-b81b1cf2a9e3
   this(NodeConstructorArgs...)(NodeConstructorArgs conargs) {
     addRoot(conargs);
@@ -150,6 +196,16 @@ mixin template TreeBody(Node) {
       asLList.remove(childIndex.listIndexForm);
     });
     return this;
+  }
+  
+  ulong findDepth(TreeIndex index) const in { asLList.checkIndex(index.listIndexForm); } do {
+    TreeIndex currentIndex = index;
+    ulong retDepth = 0;
+    while(currentIndex != rootIndex) {
+      retDepth++;
+      currentIndex = asLList.elements[currentIndex.listIndexForm].parentIndex;
+    }
+    return retDepth;
   }
   
   // 0ee74879-1218-5a31-aba4-94f5e34412bd
@@ -257,6 +313,43 @@ mixin template TreeBody(Node) {
     return this;
   }
   
+  ref This applyShallowestNodesFirst(TreeIndex from, void delegate(TreeIndex) bodyDg) in {asLList.checkIndex(from.listIndexForm); } do {
+    TreeIndex[] currentDepthList = [from];
+    
+    while(currentDepthList.length > 0) {
+      TreeIndex[] nextDepthList = [];
+      foreach(TreeIndex index; currentDepthList) {
+        bodyDg(index);
+        foreach(TreeIndex childIndex; get(index).childIndices)
+          nextDepthList ~= childIndex;
+      }
+      currentDepthList = nextDepthList;
+    }
+    return this;
+  }
+  
+  ref This applyFirstChildrenFirst(TreeIndex from, void delegate(TreeIndex) bodyDg) in {asLList.checkIndex(from.listIndexForm); } do {
+    Stack!TreeIndex applyStack;
+    applyStack.push(from);
+    while(!applyStack.isEmpty) {
+      TreeIndex currentIndex = applyStack.pop();
+      bodyDg(currentIndex);
+      foreach_reverse(TreeIndex childIndex; get(currentIndex).childIndices)
+        applyStack.push(childIndex);
+    }
+    return this;
+  }
+  
+  // Note: this uses recursion
+  T furlBranch(T)(TreeIndex from, T delegate(T[], TreeIndex) bodyDg) const in {asLList.checkIndex(from.listIndexForm); } do {
+    T[] intermediateValues;
+    foreach(TreeIndex childIndex; asLList.elements[from.listIndexForm].childIndices) {
+      T furledChildSubtreeValue = furlBranch(childIndex, bodyDg);
+      intermediateValues ~= furledChildSubtreeValue;
+    }
+    return bodyDg(intermediateValues, from);
+  }
+  
   // ed2a9fa3-c95d-5938-bf70-f16e894c4b64
   // loop generator
   int delegate(int delegate(TreeIndex)) depthFirst(TreeIndex from) in {asLList.checkIndex(from.listIndexForm);} do {
@@ -296,6 +389,43 @@ unittest { // adding nodes deeply, depthFirst generator, removing node branch
     travValues ~= node.value;
   });
   mixin(assertString("travValues == [1011, 1012, 1010, 1021, 1022, 1020, 1000]", "travValues", "tree"));
+  
+  // applyDeepestChildrenFirst depths
+  ulong[] depths = [];
+  tree.applyDeepestChildrenFirst(root, (TreeIndex nodeIndex) {
+    depths ~= tree.findDepth(nodeIndex);
+  });
+  mixin(assertString("depths == [2, 2, 1, 2, 2, 1, 0]", "depths", "tree"));
+  
+  // applyFirstChildrenFirst descending order
+  travValues = [];
+  tree.applyFirstChildrenFirst(root, (TreeIndex nodeIndex) {
+    IntNode node = tree.get(nodeIndex);
+    travValues ~= node.value;
+  });
+  mixin(assertString("travValues == [1000, 1010, 1011, 1012, 1020, 1021, 1022]", "travValues", "tree"));
+  
+  // applyFirstChildrenFirst depths
+  depths = [];
+  tree.applyFirstChildrenFirst(root, (TreeIndex nodeIndex) {
+    depths ~= tree.findDepth(nodeIndex);
+  });
+  mixin(assertString("depths == [0, 1, 2, 2, 1, 2, 2]", "depths", "tree"));
+  
+  // applyShallowestNodesFirst shallow order
+  travValues = [];
+  tree.applyShallowestNodesFirst(root, (TreeIndex nodeIndex) {
+    IntNode node = tree.get(nodeIndex);
+    travValues ~= node.value;
+  });
+  mixin(assertString("travValues == [1000, 1010, 1020, 1011, 1012, 1021, 1022]", "travValues", "tree"));
+  
+  // applyShallowestNodesFirst depths
+  depths = [];
+  tree.applyShallowestNodesFirst(root, (TreeIndex nodeIndex) {
+    depths ~= tree.findDepth(nodeIndex);
+  });
+  mixin(assertString("depths == [0, 1, 1, 2, 2, 2, 2]", "depths", "tree"));
   
   // applyDeepestChildrenFirst subtree order
   travValues = [];
@@ -359,5 +489,31 @@ unittest { // parentIndex, getChildIndex
   mixin(assertString("tree.childIndex(r1, 1) == r12", "tree.childIndex(r1, 1)", "r12", "tree.get(r1).childIndices", "tree"));
   mixin(assertString("tree.childIndex(r2, 0) == r21", "tree.childIndex(r2, 0)", "r22", "tree.get(r2).childIndices", "tree"));
   mixin(assertString("tree.childIndex(r2, 1) == r22", "tree.childIndex(r2, 1)", "r22", "tree.get(r2).childIndices", "tree"));
+}
+
+unittest { // furling
+  auto tree = IntTree();
+  TreeIndex root = tree.addRoot(1);
+  TreeIndex r1 = tree.appendChild(tree.rootIndex, 2);
+  TreeIndex r2 = tree.appendChild(tree.rootIndex, 3);
+  TreeIndex r11 = tree.appendChild(r1, 4);
+  TreeIndex r12 = tree.appendChild(r1, 5);
+  TreeIndex r21 = tree.appendChild(r2, 6);
+  TreeIndex r22 = tree.appendChild(r2, 7);
+  
+  auto sumBranch = (uint[] values, TreeIndex index) {
+    IntNode* node = &tree.get(index);
+    uint sum = node.value;
+    foreach(uint v; values)
+      sum += v;
+    return sum; 
+  };
+  
+  uint plusFurl1 = tree.furlBranch(r1, sumBranch);
+  mixin(assertString("plusFurl1 == 11", "plusFurl1", "tree"));
+  uint plusFurl2 = tree.furlBranch(r2, sumBranch);
+  mixin(assertString("plusFurl2 == 16", "plusFurl2", "tree"));
+  uint plusFurlRoot = tree.furlBranch(root, sumBranch);
+  mixin(assertString("plusFurlRoot == 28", "plusFurlRoot", "tree"));
 }
 
