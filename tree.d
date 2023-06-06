@@ -54,6 +54,7 @@ mixin template TreeBody(Node) {
   TreeIndex rootIndex;
   bool hasRoot = false; // equivalent to (length != 0) ie (!empty)
   
+  // 8f733938-9409-5eee-849c-b6f8bf8d5e46
   string indentedLinesString() {
     string ret = "";
     applyFirstChildrenFirst(rootIndex, (TreeIndex index){
@@ -70,6 +71,7 @@ mixin template TreeBody(Node) {
   static if(hasModule!"std.json" && !isVersion!"noJson") {
     import std.json : JSONValue;
     
+    // 577c198a-b112-5262-8881-795164732f24
     JSONValue toJson() {
       return toJson(rootIndex);
     }
@@ -203,6 +205,7 @@ mixin template TreeBody(Node) {
     return this;
   }
   
+  // 86a3785e-758d-506c-9572-7b1d4c5cf9ff
   ulong findDepth(TreeIndex index) const in { asLList.checkIndex(index.listIndexForm); } do {
     TreeIndex currentIndex = index;
     ulong retDepth = 0;
@@ -318,6 +321,7 @@ mixin template TreeBody(Node) {
     return this;
   }
   
+  // 45a392c1-1f55-5707-8743-3a0ba2d78cb6
   ref This applyShallowestNodesFirst(TreeIndex from, void delegate(TreeIndex) bodyDg) in {asLList.checkIndex(from.listIndexForm); } do {
     TreeIndex[] currentDepthList = [from];
     
@@ -333,6 +337,7 @@ mixin template TreeBody(Node) {
     return this;
   }
   
+  // 083b2dd5-79a9-5d3e-a70e-dca9d201797e
   ref This applyFirstChildrenFirst(TreeIndex from, void delegate(TreeIndex) bodyDg) in {asLList.checkIndex(from.listIndexForm); } do {
     Stack!TreeIndex applyStack;
     applyStack.push(from);

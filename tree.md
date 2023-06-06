@@ -73,6 +73,49 @@ Should be $O(1)$
 
 ---
 
+`8f733938-9409-5eee-849c-b6f8bf8d5e46`
+
+`string indentedLinesString()`
+
+Makes a string representation that can be printed that looks sort of like:
+
+```
+root
+  node1
+    node11
+    node12
+  node2
+    node21
+    node22
+```
+
+---
+
+`577c198a-b112-5262-8881-795164732f24`
+
+Functions to convert a tree into `std.json.JSONValue`s
+
+`JSONValue toJson()`
+
+Convert the whole string into a tree of json objects. Doesn't keep any index information, and if the `Node` type for the tree has a `JSONValue toJson()` function, then a `nodeValue` property is included for each json tree node with the value of whatever that node's `toJson` produced. So, you probably want to include a `JSONValue toJson()` function in your `Node` type if you want to use your tree's `toJson` function, otherwise only the topology of the tree is preserved
+
+`JSONValue toJson(TreeIndex from)`
+
+Convert only a subtree of the tree into json. Works just the same as the `toJson()` version
+
+
+---
+
+`86a3785e-758d-506c-9572-7b1d4c5cf9ff`
+
+`ulong findDepth(TreeIndex index)`
+
+Returns the depth of the given `index` from the root of the tree. ie: Returns the path length from the root to the given node index
+
+Note `tree.findDepth(tree.rootIndex) == 0`
+
+---
+
 `d60d71bd-5dd6-5fc4-813a-25170e3520db`
 
 `TreeIndex addRoot(args...)`
@@ -174,12 +217,52 @@ ie, this order:
         7
       /   \
      /     \
-    3       4
+    3       6
    / \     / \
-  1   2   5   6
+  1   2   4   5
       
 ```
 Where the 1 node is done first, 2 node node 2nd, etc
+
+For a depth-3 binary tree the order looks like: `n111`, `n112`, `n11`, `n121`, `n122`, `n12`, `n211`, ...
+
+---
+
+`45a392c1-1f55-5707-8743-3a0ba2d78cb6`
+
+`ref This applyShallowestNodesFirst(TreeIndex startIndex, void delegate(TreeIndex) dg)`
+
+Applies the loop body `dg` in depth order. So nodes closer to the root have `dg` applied to their indices first
+
+```
+        1
+      /   \
+     /     \
+    2       3
+   / \     / \
+  4   5   6   7
+```
+
+For a depth-3 binary tree the order looks like: `n`, `n1`, `n2`, `n11`, `n12`, `n21`, `n22`, ...
+
+---
+
+`083b2dd5-79a9-5d3e-a70e-dca9d201797e`
+
+`ref This applyFirstChildrenFirst(TreeIndex startIndex, void delegate(TreeIndex) dg)`
+
+Applies the loop body `dg` down the first subtrees before the subsequence subtrees at each subtree. This is the usual depth-first order. This is like `applyDeepestChildrenFirst` but applies `dg` from the top down to the leafs, then ascends to the next unapplied siblings, etc
+
+```
+        1
+      /   \
+     /     \
+    2       5
+   / \     / \
+  3   4   6   7
+```
+
+For a depth-3 binary tree the order looks like: `n`, `n1`, `n11`, `n111`, `n112`, `n121`, `n122`, ...
 
 ---
 
