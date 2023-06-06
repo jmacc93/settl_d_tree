@@ -1,11 +1,12 @@
 
-import linked_list;
-import lib : Stack, findIndex, removeIndex, Maybe, assertString, writeStack, iff;
+debug import lib: dbgwritelnMixin;
+import lib: hasModule, isVersion;
 
 // cabbb068-bbcc-5c01-b115-35aba6f7ee07
 
 // 91cfb2a7-ddb3-51bd-855f-0f2925150c79
 struct TreeIndex {
+  import linked_list: LListIndex;
   LListIndex listIndexForm;
   alias listIndexForm this;
   
@@ -14,6 +15,8 @@ struct TreeIndex {
 
 // c403ebf7-e576-5736-b882-062fc6e76bda
 mixin template NodeBody() {
+  import linked_list: LListIndex, LListElementBody;
+  import lib: Maybe;
   mixin LListElementBody!(); // prevIndex, nextIndex properties
   // alias asLListElement this;
   
@@ -25,6 +28,9 @@ mixin template NodeBody() {
 
 // 963bcc1c-243f-586e-9417-b5ad5be412f3
 mixin template TreeBody(Node) {
+  import lib: Stack, findIndex, removeIndex, iff, Maybe;
+  import linked_list: LinearIndex, LListIndex;
+  
   // 6a1e1281-8074-5c24-9dc7-e8e5bd3f78ff
   static assert(!isNullInit!Node); // Node must be a struct
   
@@ -266,7 +272,8 @@ mixin template TreeBody(Node) {
 // 25e8f47d-8dba-5c73-b974-78d426726e43
 
 version(unittest) {
-  struct IntNode { mixin NodeBody!(); uint value; }
+  import lib: assertString, writeStack;
+  struct IntNode { mixin NodeBody!(); uint value; this(uint value_) { value = value_; }}
   struct IntTree {  mixin TreeBody!IntNode; }
 }
 
