@@ -113,7 +113,8 @@ mixin template TreeBody(Node) {
   // d60d71bd-5dd6-5fc4-813a-25170e3520db
   TreeIndex addRoot(NodeConstructorArgs...)(NodeConstructorArgs conargs) out {doPostModificationCheck(); } do {
     mixin(assertString!"Root exists!"("length == 0", "asLList.length", "rootIndex", "this"));
-    LListIndex newRootListIndex = asLList.append(cast(TreeIndex[])[], TreeIndex(0), conargs);
+    auto newNode = Node(conargs);
+    LListIndex newRootListIndex = asLList.append(newNode);
     hasRoot = true;
     TreeIndex newRootIndex = TreeIndex(newRootListIndex);
     rootIndex = newRootIndex;
@@ -122,14 +123,18 @@ mixin template TreeBody(Node) {
   
   // 50b35196-0fd3-56ab-8fdd-cbb1dfad36ee
   TreeIndex appendChild(NodeConstructorArgs...)(TreeIndex parentIndex, NodeConstructorArgs conargs)  in {asLList.checkIndex(parentIndex.listIndexForm);} out {doPostModificationCheck(); } do {
-    LListIndex newChildListIndex = asLList.append(cast(TreeIndex[])[], parentIndex, conargs);
+    auto newNode = Node(conargs);
+    newNode.parentIndex = parentIndex;
+    LListIndex newChildListIndex = asLList.append(newNode);
     Node* parentNode = &get(parentIndex);
     TreeIndex newChildIndex = TreeIndex(newChildListIndex);
     parentNode.childIndices ~= newChildIndex;
     return newChildIndex;
   }
   TreeIndex prependChild(NodeConstructorArgs...)(TreeIndex parentIndex, NodeConstructorArgs conargs)  in {asLList.checkIndex(parentIndex.listIndexForm);} out {doPostModificationCheck(); } do {
-    LListIndex newChildListIndex = asLList.append(cast(TreeIndex[])[], parentIndex, conargs);
+    auto newNode = Node(conargs);
+    newNode.parentIndex = parentIndex;
+    LListIndex newChildListIndex = asLList.append(newNode);
     Node* parentNode = &get(parentIndex);
     TreeIndex newChildIndex = TreeIndex(newChildListIndex);
     parentNode.childIndices = newChildIndex ~ parentNode.childIndices;
